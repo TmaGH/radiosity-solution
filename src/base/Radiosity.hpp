@@ -29,7 +29,7 @@ public:
 
     // we'll compute radiosity asynchronously, meaning we'll be able to
     // fly around in the scene watching the process complete.
-    void	startRadiosityProcess( MeshWithColors* scene, AreaLight* light, RayTracer* rt, int numBounces, int numDirectRays, int numHemisphereRays );
+    void	startRadiosityProcess( MeshWithColors* scene, AreaLight* light, RayTracer* rt, int numBounces, int numDirectRays, int numHemisphereRays, bool visualizeLastBounce );
 
     // are we still processing?
     bool	isRunning() const		{ return m_launcher.getNumTasks() > 0; }
@@ -56,6 +56,7 @@ protected:
         int					m_numDirectRays;
         int					m_numHemisphereRays;
         int					m_currentBounce;
+        int                 m_visualizeLastBounce;
 
         bool				m_bForceExit;
 

@@ -103,6 +103,10 @@ App::App(std::vector<std::string>& cmd_args)
 	m_commonCtrl.addSlider(&m_toneMapWhite, 0.05f, 10.0f, true, FW_KEY_NONE, FW_KEY_NONE, "Tone mapping parameter 1= %f");
 	m_commonCtrl.addSlider(&m_toneMapBoost, 0.05f, 10.0f, true, FW_KEY_NONE, FW_KEY_NONE, "Tone mapping parameter 2= %f");
 	m_commonCtrl.endSliderStack();
+	m_commonCtrl.addSeparator();
+	m_commonCtrl.addToggle((S32*)&m_visualizeLastBounce, false, FW_KEY_NONE, "Visualize sum of all bounces");
+	m_commonCtrl.addToggle((S32*)&m_visualizeLastBounce, true, FW_KEY_NONE, "(EXTRA) Visualize only current bounce");
+
 
 	m_window.addListener(this);
 	m_window.addListener(&m_commonCtrl);
@@ -437,7 +441,7 @@ bool App::handleEvent(const Window::Event& ev)
 		break;
 
 	case Action_ComputeRadiosity:
-		m_radiosity->startRadiosityProcess( m_mesh.get(), m_areaLight.get(), m_rt.get(), m_numBounces, m_numDirectRays, m_numHemisphereRays );
+		m_radiosity->startRadiosityProcess( m_mesh.get(), m_areaLight.get(), m_rt.get(), m_numBounces, m_numDirectRays, m_numHemisphereRays, m_visualizeLastBounce );
 		m_updateClock.start();
 		break;
 

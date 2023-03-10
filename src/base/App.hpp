@@ -167,6 +167,7 @@ private:
     Timer								m_updateClock;
 	GLuint								m_tangentBuffer, m_bitangentBuffer, m_sphericalBuffer1, m_sphericalBuffer2;
 	bool								m_enableSH, m_shChanged;
+    bool                                m_visualizeLastBounce;
 };
 
 

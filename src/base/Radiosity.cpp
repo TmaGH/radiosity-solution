@@ -38,7 +38,7 @@ void Radiosity::vertexTaskFunc( MulticoreLauncher::Task& task )
     Vec3f o = ctx.m_scene->vertex(v).p + 0.01f*n;
 
     // direct lighting pass? => integrate direct illumination by shooting shadow rays to light source
-    if ( ctx.m_currentBounce == 0 )
+    if ( ctx.m_currentBounce == 0)
     {
         Vec3f E(0);
         for ( int r = 0; r < ctx.m_numDirectRays; ++r )
@@ -55,9 +55,6 @@ void Radiosity::vertexTaskFunc( MulticoreLauncher::Task& task )
             if (!shadowResult.tri) {
                 float cosIncDir = n.dot(shadowRay.normalized());
                 float cosYXDir = ctx.m_light->getNormal().dot(-shadowRay.normalized());
-
-                assert(cosIncDir >= -1.0f && cosIncDir <= 1.0f);
-                assert(cosYXDir >= -1.0f && cosYXDir <= 1.0f);
 
                 cosIncDir = clamp(cosIncDir, 0.0f, 1.0f);
                 cosYXDir = clamp(cosYXDir, 0.0f, 1.0f);
@@ -152,14 +149,15 @@ void Radiosity::vertexTaskFunc( MulticoreLauncher::Task& task )
         // Also add to the global accumulator.
         ctx.m_vecResult[ v ] = ctx.m_vecResult[ v ] + ctx.m_vecCurr[ v ];
 
-        // uncomment this to visualize only the current bounce
-        //ctx.m_vecResult[ v ] = ctx.m_vecCurr[ v ];	
+        if (ctx.m_visualizeLastBounce) {
+            ctx.m_vecResult[ v ] = ctx.m_vecCurr[ v ];	
+        }
     }
       return;
 }
 // --------------------------------------------------------------------------
 
-void Radiosity::startRadiosityProcess( MeshWithColors* scene, AreaLight* light, RayTracer* rt, int numBounces, int numDirectRays, int numHemisphereRays )
+void Radiosity::startRadiosityProcess( MeshWithColors* scene, AreaLight* light, RayTracer* rt, int numBounces, int numDirectRays, int numHemisphereRays, bool visualizeLastBounce )
 {
     // put stuff the asyncronous processor needs 
     m_context.m_scene				= scene;
@@ -169,6 +167,7 @@ void Radiosity::startRadiosityProcess( MeshWithColors* scene, AreaLight* light, 
     m_context.m_numBounces			= numBounces;
     m_context.m_numDirectRays		= numDirectRays;
     m_context.m_numHemisphereRays	= numHemisphereRays;
+    m_context.m_visualizeLastBounce = visualizeLastBounce;
 
     // resize all the buffers according to how many vertices we have in the scene
 	m_context.m_vecResult.resize(scene->numVertices());
