@@ -75,6 +75,7 @@ void Radiosity::vertexTaskFunc( MulticoreLauncher::Task& task )
         // The result we are computing is _irradiance_, not radiosity.
         ctx.m_vecCurr[ v ] = E * (1.0f/ctx.m_numDirectRays);
         ctx.m_vecResult[ v ] = ctx.m_vecCurr[ v ];
+        ctx.m_vecIntermediateResult[ ctx.m_currentBounce ][ v ] = ctx.m_vecCurr[ v ];
     }
     else
     {
@@ -148,6 +149,7 @@ void Radiosity::vertexTaskFunc( MulticoreLauncher::Task& task )
         ctx.m_vecCurr[ v ] = E * (FW_PI / ctx.m_numHemisphereRays);
         // Also add to the global accumulator.
         ctx.m_vecResult[ v ] = ctx.m_vecResult[ v ] + ctx.m_vecCurr[ v ];
+        ctx.m_vecIntermediateResult[ ctx.m_currentBounce ][ v ] = ctx.m_vecCurr[ v ];
 
         if (ctx.m_visualizeLastBounce) {
             ctx.m_vecResult[ v ] = ctx.m_vecCurr[ v ];	
@@ -157,20 +159,24 @@ void Radiosity::vertexTaskFunc( MulticoreLauncher::Task& task )
 }
 // --------------------------------------------------------------------------
 
-void Radiosity::startRadiosityProcess( MeshWithColors* scene, AreaLight* light, RayTracer* rt, int numBounces, int numDirectRays, int numHemisphereRays, bool visualizeLastBounce )
+void Radiosity::startRadiosityProcess( MeshWithColors* scene, AreaLight* light, RayTracer* rt, int numBounces, int numDirectRays, int numHemisphereRays, int bounceToVisualize, bool visualizeLastBounce )
 {
     // put stuff the asyncronous processor needs 
     m_context.m_scene				= scene;
     m_context.m_rt					= rt;
     m_context.m_light				= light;
     m_context.m_currentBounce		= 0;
-    m_context.m_numBounces			= numBounces;
+    m_context.m_numBounces			= max(numBounces, bounceToVisualize - 1);
     m_context.m_numDirectRays		= numDirectRays;
     m_context.m_numHemisphereRays	= numHemisphereRays;
     m_context.m_visualizeLastBounce = visualizeLastBounce;
 
     // resize all the buffers according to how many vertices we have in the scene
 	m_context.m_vecResult.resize(scene->numVertices());
+    m_context.m_vecIntermediateResult.resize(m_context.m_numBounces + 1);
+    for (int i = 0; i <= m_context.m_numBounces; i++) {
+		m_context.m_vecIntermediateResult[i].resize(scene->numVertices());
+    }
     m_context.m_vecCurr.resize( scene->numVertices() );
     m_context.m_vecPrevBounce.resize( scene->numVertices() );
     m_context.m_vecResult.assign( scene->numVertices(), Vec3f(0,0,0) );
@@ -192,7 +198,7 @@ void Radiosity::startRadiosityProcess( MeshWithColors* scene, AreaLight* light, 
 }
 // --------------------------------------------------------------------------
 
-bool Radiosity::updateMeshColors(std::vector<Vec4f>& spherical1, std::vector<Vec4f>& spherical2, std::vector<float>& spherical3, bool spherical)
+bool Radiosity::updateMeshColors(std::vector<Vec4f>& spherical1, std::vector<Vec4f>& spherical2, std::vector<float>& spherical3, bool spherical, int bounceToVisualize)
 {
 	if (!m_context.m_scene || m_context.m_vecResult.size()==0) return false;
     // Print progress.
@@ -203,16 +209,27 @@ bool Radiosity::updateMeshColors(std::vector<Vec4f>& spherical1, std::vector<Vec
     // and let the shader multiply the final diffuse reflectance in. See App::setupShaders() for details.
 	for (int i = 0; i < m_context.m_scene->numVertices(); ++i) {
 
+        Vec3f vecResult = m_context.m_vecResult[i];
+        Vec3f vecSphericalC = m_context.m_vecSphericalC[i];
+        Vec3f vecSphericalX = m_context.m_vecSphericalX[i];
+        Vec3f vecSphericalY = m_context.m_vecSphericalY[i];
+        Vec3f vecSphericalZ = m_context.m_vecSphericalZ[i];
+        
+        if (bounceToVisualize > 0) {
+            if (bounceToVisualize > m_context.m_numBounces + 1) break;
+            vecResult = m_context.m_vecIntermediateResult[bounceToVisualize - 1][i];
+        }
+
 		// Packing data for the spherical harmonic extra.
 		// In order to manage with fewer vertex attributes in the shader, the third component is stored as the w components of other actually three-dimensional vectors.
 		if (spherical) {
-			m_context.m_scene->mutableVertex(i).c = m_context.m_vecSphericalC[i] * (1.0f / FW_PI);
-			spherical3[i] = m_context.m_vecSphericalZ[i].x * (1.0f / FW_PI);
-			spherical1[i] = Vec4f(m_context.m_vecSphericalX[i], m_context.m_vecSphericalZ[i].y) * (1.0f / FW_PI);
-			spherical2[i] = Vec4f(m_context.m_vecSphericalY[i], m_context.m_vecSphericalZ[i].z) * (1.0f / FW_PI);
+			m_context.m_scene->mutableVertex(i).c = vecSphericalC * (1.0f / FW_PI);
+			spherical3[i] = vecSphericalZ.x * (1.0f / FW_PI);
+			spherical1[i] = Vec4f(vecSphericalX, vecSphericalZ.y)* (1.0f / FW_PI);
+			spherical2[i] = Vec4f(vecSphericalY, vecSphericalZ.z) * (1.0f / FW_PI);
 		}
 		else {
-			m_context.m_scene->mutableVertex(i).c = m_context.m_vecResult[i] * (1.0f / FW_PI);
+            m_context.m_scene->mutableVertex(i).c = vecResult * (1.0f / FW_PI);
 		}
 	}
 	return true;

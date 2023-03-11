@@ -62,7 +62,9 @@ private:
         Action_ComputeRadiosity,
         Action_LoadRadiosity,
         Action_SaveRadiosity,
-		Action_ToggleSphericalHarmonics
+		Action_ToggleSphericalHarmonics,
+
+        Action_RenderChosenBounce
     };
 
     enum CullMode
@@ -161,6 +163,7 @@ private:
     int									m_numHemisphereRays;
     int									m_numDirectRays;
     int									m_numBounces;
+    int                                 m_bounceToVisualize;
     float								m_lightSize;
     float								m_toneMapWhite;
     float								m_toneMapBoost;
