@@ -43,7 +43,9 @@ App::App(std::vector<std::string>& cmd_args)
 	m_toneMapWhite      (1.0f),
 	m_toneMapBoost      (1.0f),
 	m_enableSH			(false),
-	m_shChanged			(false)
+	m_shChanged			(false),
+	m_visualizeLastBounce(false),
+	m_bounceToVisualize(0)
 {
 
 	m_commonCtrl.showFPS(true);
