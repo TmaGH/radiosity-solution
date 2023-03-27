@@ -20,7 +20,7 @@ void AreaLight::draw(const Mat4f& worldToCamera, const Mat4f& projection) {
     glEnd();
 }
 
-void AreaLight::sample(float& pdf, Vec3f& p, int base, Random& rnd) {
+void AreaLight::sample(float& pdf, Vec3f& p, int baseX, int baseY, int samplingIndex, Random& rnd) {
     // You should draw a random point on the light source and evaluate the PDF.
     // Store the results in "pdf" and "p".
     // 
@@ -38,8 +38,28 @@ void AreaLight::sample(float& pdf, Vec3f& p, int base, Random& rnd) {
     // Use the "base" input for controlling the progression of the sequence from
     // the outside. If you only implement purely random sampling, "base" is not required.
 
+    // Inefficient QMC based on Halton sequence
+    // Using different base for x and y to avoid correlation
+    float x = 0;
+    float y = 0;
+    float fX = 1.0 / baseX;
+    float fY = 1.0 / baseY;
+    int i = samplingIndex;
+
+    while (i > 0) {
+		x += fX * (i % baseX);
+        i /= baseX;
+		fX /= baseX;
+	}
+    i = samplingIndex;
+    while (i > 0) {
+        y += fY * (i % baseY);
+		i /= baseY;
+        fY /= baseY;
+    }
+
     Mat4f objectToWorld = m_xform * Mat4f::scale(Vec3f(m_size, 1));
-    Vec4f rndPointInObjectSpace = Vec4f(Vec3f(rnd.getVec2f(-1.0f, 1.0f), 0), 1);
+    Vec4f rndPointInObjectSpace = Vec4f(2 * x - 1, 2 * y - 1, 0, 1);
     p = (objectToWorld * rndPointInObjectSpace).getXYZ();
     pdf = 1.0f / (4 * m_size.x * m_size.y);
 }

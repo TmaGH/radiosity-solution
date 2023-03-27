@@ -445,7 +445,7 @@ bool App::handleEvent(const Window::Event& ev)
 		break;
 
 	case Action_ComputeRadiosity:
-		m_radiosity->startRadiosityProcess( m_mesh.get(), m_areaLight.get(), m_rt.get(), m_numBounces, m_numDirectRays, m_numHemisphereRays, m_bounceToVisualize, m_visualizeLastBounce );
+		m_radiosity->startRadiosityProcess( m_mesh.get(), m_areaLight.get(), m_rt.get(), m_numBounces, m_numDirectRays, m_numHemisphereRays, m_enableSH, m_bounceToVisualize, m_visualizeLastBounce);
 		m_updateClock.start();
 		break;
 	case Action_RenderChosenBounce:
@@ -773,10 +773,19 @@ void App::constructTracer()
 			t.m_material = &(m_mesh->material(i));
 
 			m_rtTriangles.push_back(t);
-			// EXTRA: generate tangent space for triangle t here (you can probably reuse code from assn1 if you implemented tangent space normal mapping)
+
+			Vec3f dP1 = v1.p - v0.p;
+			Vec3f dP2 = v2.p - v0.p;
+			Vec2f dUV1 = v1.t - v0.t;
+			Vec2f dUV2 = v2.t - v0.t;
+			float r = 1.0f / (dUV1.x * dUV2.y - dUV1.y * dUV2.x);
+
+			Vec3f tangent = (dP1 * dUV2.y - dP2 * dUV1.y) * r;
+			Vec3f bitangent = (dP1 * dUV2.x - dP2 * dUV1.x) * r;
+
 			for (int k = 0; k < 3; ++k) {
-				m_tangents[idx[j][k]] += Vec3f(.0f);
-				m_bitangents[idx[j][k]] += Vec3f(.0f);
+				m_tangents[idx[j][k]] += tangent;
+				m_bitangents[idx[j][k]] += bitangent;
 			}
 		}
 	}
@@ -804,7 +813,7 @@ void App::constructTracer()
 	m_rt.reset(new RayTracer());
 
 	// whether we want to try loading a saved hierarchy from disk
-	bool tryLoadHierarchy = false;
+	bool tryLoadHierarchy = true;
 
 	// always construct when measuring performance
 	if (m_settings.batch_render)
@@ -979,6 +988,7 @@ varying vec3 sphericalConstant;
 varying vec3 sphericalX;
 varying vec3 sphericalY;
 varying vec3 sphericalZ;
+varying mat3 TBN;
 
 void main()
 {
@@ -996,6 +1006,7 @@ void main()
 	normalVarying = normalAttrib;
 	colorVarying = vcolorAttrib;
 	texCoordVarying = texCoordAttrib;
+	TBN = mat3(normalize(tangent.xyz), normalize(bitangent), normalize(normalAttrib));
 }
 ),
 "#version 120\n"
@@ -1021,6 +1032,8 @@ varying vec3 sphericalConstant;
 varying vec3 sphericalX;
 varying vec3 sphericalY;
 varying vec3 sphericalZ;
+varying mat3 TBN;
+
 void main()
 {
 	vec4 diffuseColor = diffuseUniform;
@@ -1031,16 +1044,20 @@ void main()
 	if (hasDiffuseTexture)
 		diffuseColor.rgb = texture2D(diffuseSampler, texCoordVarying).rgb;
 
-	if (hasNormalTexture)
-		normal = normalize(normalVarying); // EXTRA: read the normal map instead
+	if (hasNormalTexture) {
+		normal = texture2D(normalSampler, texCoordVarying).xyz;
+		normal = normal * 2.0 - 1.0;
+		normal = normalize(TBN * normal);
+	}
 	else
 		normal = normalize(normalVarying);
 
 	if (useSphericalHarmonics) {
-		// EXTRA: evaluate the basis functions here
+		diffuseColor.rgb *= sphericalConstant + sphericalX * normal.x + sphericalY * normal.y + sphericalZ * normal.z;
 	}
-
-	diffuseColor.rgb *= colorVarying.rgb;
+	else {
+		diffuseColor.rgb *= colorVarying.rgb;
+	}
 
 	if (hasAlphaTexture)
 		diffuseColor.a = texture2D(alphaSampler, texCoordVarying).g;

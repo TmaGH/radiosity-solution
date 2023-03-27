@@ -4,6 +4,7 @@
 #include <base/MulticoreLauncher.hpp>
 #include <base/Random.hpp>
 #include <3d/Mesh.hpp>
+#include <atomic>
 
 #include <vector>
 
@@ -29,7 +30,7 @@ public:
 
     // we'll compute radiosity asynchronously, meaning we'll be able to
     // fly around in the scene watching the process complete.
-    void	startRadiosityProcess( MeshWithColors* scene, AreaLight* light, RayTracer* rt, int numBounces, int numDirectRays, int numHemisphereRays, int bounceToVisualize, bool visualizeLastBounce );
+    void	startRadiosityProcess( MeshWithColors* scene, AreaLight* light, RayTracer* rt, int numBounces, int numDirectRays, int numHemisphereRays, bool useSpherical, int bounceToVisualize, bool visualizeLastBounce );
 
     // are we still processing?
     bool	isRunning() const		{ return m_launcher.getNumTasks() > 0; }
@@ -51,12 +52,13 @@ protected:
         MeshWithColors*		m_scene;
         AreaLight*			m_light;
         RayTracer*			m_rt;
-
+        
         int					m_numBounces;
         int					m_numDirectRays;
         int					m_numHemisphereRays;
         int					m_currentBounce;
         int                 m_visualizeLastBounce;
+        int                 m_useSpherical;
 
         bool				m_bForceExit;
 
@@ -71,7 +73,6 @@ protected:
     static void vertexTaskFunc( MulticoreLauncher::Task& );
 
     RadiosityContext		m_context;
-
 };
 
 } // namepace FW
